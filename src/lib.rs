@@ -81,6 +81,20 @@ impl Emu {
         new_emu
     }
 
+    /// Reset the system without having to create a new object Emu
+    pub fn reset(&mut self) {
+        self.pc = START_ADDR;
+        self.ram = [0; RAM_SIZE];
+        self.screen = [false; SCREEN_WIDTH * SCREEN_HEIGHT];
+        self.v_reg = [0; NUM_REGS];
+        self.i_reg = 0;
+        self.sp = 0;
+        self.stack = [0; STACK_SIZE];
+        self.keys = [false; NUM_KEYS];
+        self.dt = 0;
+        self.st = 0;
+    }
+
     /// pushes a given value to the stack
     /// 
     /// **Arguments**:
@@ -95,6 +109,39 @@ impl Emu {
     fn pop(&mut self) -> u16 {
         self.sp -= 1;
         self.stack[self.sp as usize]
+    }
+
+    pub fn tick(&mut self) {
+        // Fetch
+        let op = self.fetch();
+        // Decode
+        // Execute
+    }
+
+    /// Fetches the opcode for the current instruction
+    /// Each opcode is exactly 2 bytes
+    fn fetch(&mut self) -> u16 {
+        // RAM stores values in u8, so we need to combine the higher and lower bytes
+        let higher_byte= self.ram[self.pc as usize] as u16;
+        let lower_byte= self.ram[(self.pc + 1) as usize] as u16;
+        // Big Endian representation
+        let op = (higher_byte << 8) | lower_byte;
+        self.pc += 2;
+        op
+    }
+
+    /// Implements tick timers, each frame dt and st decrement
+    /// if st == 1 before decrement, beeps
+    pub fn tick_timers(&mut self) {
+        if self.dt > 0 {
+            self.dt -= 1;
+        }
+        if self.st > 0 {
+            if self.st == 1 {
+                // BEEP TODO (might not be implemented due to complexity)
+            }
+            self.st -= 1;
+        }
     }
 
 }
