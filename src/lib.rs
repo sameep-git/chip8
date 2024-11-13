@@ -213,6 +213,120 @@ impl Emu {
                     self.pc += 2;
                 }
             },
+            // 6XNN
+            // VX = NN : sets the register VX to NN
+            (6, _, _, _) => {
+                let x = digit2 as usize;
+                let nn = (op & 0xFF) as u8;
+                self.v_reg[x] = nn;
+            },
+            // 7XNN
+            // VX += NN : increments register VX by NN
+            // We use wrapping_add to avoid a panic from rustc
+            (7, _, _, _) => {
+                let x = digit2 as usize;
+                let nn = (op & 0xFF) as u8;
+                self.v_reg[x] = self.v_reg[x].wrapping_add(nn);
+            },
+            // 8XY0
+            // VX = VY : sets register VX to VY
+            (8, _, _, 0) => {
+                let x = digit2 as usize;
+                let y = digit3 as usize;
+                self.v_reg[x] = self.v_reg[y];
+            },
+            // 8XY1
+            // VX |= VY
+            (8, _, _, 1) => {
+                let x = digit2 as usize;
+                let y = digit3 as usize;
+                self.v_reg[x] |= self.v_reg[y];
+            },
+            // 8XY2
+            // VX &= VY
+            (8, _, _, 2) => {
+                let x = digit2 as usize;
+                let y = digit3 as usize;
+                self.v_reg[x] &= self.v_reg[y];
+            },
+            // 8XY3
+            // VX ^= VY
+            (8, _, _, 3) => {
+                let x = digit2 as usize;
+                let y = digit3 as usize;
+                self.v_reg[x] ^= self.v_reg[y];
+            },
+            // 8XY4
+            // VX += VY
+            // We need to set the carry flag, VF if there is an overflow
+            // We use overflowing add and check for errors to avoid panic
+            (8, _, _, 4) => {
+                let x = digit2 as usize;
+                let y = digit3 as usize;
+                
+                let (new_vx, carry) = self.v_reg[x].overflowing_add(self.v_reg[y]);
+                let new_vf = if carry {1} else {0};
+                
+                self.v_reg[x] = new_vx;
+                self.v_reg[0xF] = new_vf;
+            },
+            // 8XY5
+            // VX -= VY
+            // We need to set the carry flag, VF if there is an overflow
+            // We use overflowing sub and check for errors to avoid panic
+            // For underflow, CF (VF) is set to 0 and if there is no underflow
+            // it is set to 1.
+            (8, _, _, 5) => {
+                let x = digit2 as usize;
+                let y = digit3 as usize;
+                
+                let (new_vx, carry) = self.v_reg[x].overflowing_sub(self.v_reg[y]);
+                let new_vf = if carry {0} else {1};
+                
+                self.v_reg[x] = new_vx;
+                self.v_reg[0xF] = new_vf;
+            },
+            // 8XY6
+            // VX >>= 1
+            // We need to catch the dropped bit and store it into the VF register
+            // the dropped bit is the least significant bit (lsb)
+            (8, _, _, 6) => {
+                let x = digit2 as usize;
+                let lsb = self.v_reg[x] & 1;
+                self.v_reg[0xF] = lsb;
+                self.v_reg[x] >>= 1;
+            },
+            // 8XY7
+            // VX = VY - VX
+            // Check underflow and set CF to 0 if there is an underflow, else 1
+            (8, _, _, 7) => {
+                let x = digit2 as usize;
+                let y = digit3 as usize;
+                
+                let (new_vx, borrow) = self.v_reg[y].overflowing_sub(self.v_reg[x]);
+                let new_vf = if borrow {0} else {1};
+
+                self.v_reg[0xF] = new_vf;
+                self.v_reg[x] = new_vx;
+            },
+            // 8XYE
+            // VX <<= 1
+            // Overflowed value is stored in VF
+            (8, _, _, 0xE) => {
+                let x = digit2 as usize;
+                let msb = (self.v_reg[x] >> 7) & 1;
+                self.v_reg[0xF] = msb;
+                self.v_reg[x] <<= 1;
+            },
+            // 9XY0
+            // SKIP VX != VY : skip line if VX != VY
+            (9, _, _, 0) => {
+                let x = digit2 as usize;
+                let y = digit3 as usize;
+                if self.v_reg[x] != self.v_reg[y] {
+                    self.pc += 2;
+                }
+            },
             (_, _, _, _) => unimplemented!("Unimplemented opcode: {}", op),
         }
     }
