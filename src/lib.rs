@@ -114,8 +114,8 @@ impl Emu {
     pub fn tick(&mut self) {
         // Fetch
         let op = self.fetch();
-        // Decode
-        // Execute
+        // Decode & Executer
+        self.execute(op);
     }
 
     /// Fetches the opcode for the current instruction
@@ -141,6 +141,79 @@ impl Emu {
                 // BEEP TODO (might not be implemented due to complexity)
             }
             self.st -= 1;
+        }
+    }
+
+    /// Executes operation on the Emulator
+    /// * 'op': given opcode that needs to be executed
+    fn execute(&mut self, op: u16) {
+
+        let digit1 = (op & 0xF000) >> 12;
+        let digit2 = (op & 0x0F00) >> 8;
+        let digit3 = (op & 0x00F0) >> 4;
+        let digit4 = op & 0x000F;
+
+        match (digit4, digit3, digit2, digit1) {
+            // 0000
+            // NOP : No operation
+            (0, 0, 0, 0) => return,
+            // 00E0
+            // CLS : clear screen
+            (0, 0, 0xE, 0) => {
+                self.screen = [false; SCREEN_HEIGHT * SCREEN_WIDTH];
+            },
+            // 00EE
+            // RET : return from subroutine
+            // pop from stack and execute from that address
+            (0, 0, 0xE, 0xE) => {
+                let ret_addr = self.pop();
+                self.pc = ret_addr;
+            },
+            // 1NNN
+            // JMP NNN : jump to given address NNN
+            (1, _, _, _) => {
+                let nnn = op & 0xFFF;
+                self.pc = nnn;
+            },
+            // 2NNN
+            // CALL NNN : call subroutine at address NNN
+            // we push the current pc on the stack and then
+            // change pc to nnn
+            (2, _, _, _) => {
+                let nnn = op & 0xFFF;
+                self.push(self.pc);
+                self.pc = nnn;
+            },
+            // 3XNN
+            // SKIP VX == NN : skip line if VX == NN
+            // gives a similar functionality like an if else block
+            (3, _, _, _) => {
+                let x = digit2 as usize;
+                let nn = (op & 0xFF) as u8;
+                if nn == self.v_reg[x] {
+                    self.pc += 2;
+                }
+            },
+            // 4XNN
+            // SKIP VX != NN : skip line if VX != NN
+            // gives a similar functiinality like an if else block
+            (4, _, _, _) => {
+                let x = digit2 as usize;
+                let nn = (op & 0xFF) as u8;
+                if nn != self.v_reg[x] {
+                    self.pc += 2;
+                }
+            },
+            // 5XY0
+            // SKIP VX == VY : skip line if VX == VY
+            (5, _, _, 0) => {
+                let x = digit2 as usize;
+                let y = digit3 as usize;
+                if self.v_reg[x] == self.v_reg[y] {
+                    self.pc += 2;
+                }
+            },
+            (_, _, _, _) => unimplemented!("Unimplemented opcode: {}", op),
         }
     }
 
