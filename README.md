@@ -2,7 +2,7 @@
 This is a Chip8 emulator build on Rust.
 Currently working on developing the Emulator interface and writing code for the operations that help run code written for Chip8, likes games, etc.
 
-Opcodes:
+**Opcodes:**
 Each opcode is 16bits. References to registers are usually refered to by `X` and `Y`. Immediate values as `N`, `NN`, and `NNN`. `NNN` used for 12bit addresses. Registers include 8bit `V0` through `VF`, 12bit memory location `I`, 12bit program counter `PC`, 8bit delay timer `DT`, 8bit sound timer `ST`. There is also a 12bit stack pointer `SP`.
 
 | opcode |mnemonic| description|
@@ -34,6 +34,3 @@ TODO:
 	 - [ ] Loading files
 	 - [ ] Drawing to screen
  - [ ] WebAssembly integration
- 
- 
-
