@@ -424,6 +424,15 @@ impl Emu {
                 let vx = self.v_reg[x] as u16;
                 self.i_reg = self.i_reg.wrapping_add(vx);
             },
+            // FX29
+            // I = FONT : set I to font_address
+            // finds the address of the sprite to be printed and stores
+            // it into the I register
+            (0xF, _, 2, 9) => {
+                let x = digit2 as usize;
+                let c = self.v_reg[x] as u16;
+                self.i_reg = c * 5;
+            },
             (_, _, _, _) => unimplemented!("Unimplemented opcode: {}", op),
         }
     }
