@@ -1,3 +1,5 @@
+use rand::random;
+
 pub const SCREEN_HEIGHT: usize = 32;
 pub const SCREEN_WIDTH: usize = 64;
 
@@ -326,6 +328,101 @@ impl Emu {
                 if self.v_reg[x] != self.v_reg[y] {
                     self.pc += 2;
                 }
+            },
+            // ANNN
+            // I = NNN : sets I register to nnn
+            (0xA, _, _, _) => {
+                let nnn = op & 0xFFF;
+                self.i_reg = nnn;
+            },
+            // BNNN
+            // JMP V0 + NNN : jumps to the value of V0 + nnn
+            (0xB, _, _, _) => {
+                let nnn = op & 0xFFF;
+                self.pc = (self.v_reg[0] as u16) + nnn;
+            },
+            // CXNN
+            // VX = rand() & NN : gets a random number, AND it with nn
+            // We use the random() function to generate a random num
+            // We have to define u8 for rng so random() knows what
+            // type of number to generate
+            (0xC, _, _, _) => {
+                let x = digit2 as usize;
+                let nn = (op & 0xFF) as u8;
+                let rng: u8 = random();
+                self.v_reg[x] = rng & nn;
+            },
+            // DXYN
+            // DRAW - unimplemented
+            (0xD, _, _, _) => {
+
+            },
+            // EX9E
+            // SKIP KEY PRESS : skip the next line if the key stored in VX is pressed
+            (0xE, _, 9, 0xE) => {
+                let x = digit2 as usize;
+                let vx = self.v_reg[x];
+                let key = self.keys[vx as usize];
+                if key {
+                    self.pc += 2;
+                }
+            },
+            // EXA1
+            // SKIP KEY RELEASE : skip the next line if the key stored in VX is not pressed
+            (0xE, _, 0xA, 1) => {
+                let x = digit2 as usize;
+                let vx = self.v_reg[x];
+                let key = self.keys[vx as usize];
+                if !key {
+                    self.pc += 2;
+                }
+            },
+            // FX07
+            // VX = DT : sets value of VX to that of DT
+            (0xF, _, 0, 7) => {
+                let x = digit2 as usize;
+                self.v_reg[x] = self.dt;
+            },
+            // FX0A
+            // WAIT KEY : waits for a key press, blocks execution of further ops
+            // until any key is pressed and then stores that key into VX
+            // if multiple keys are pressed the lowest indexed key is stored
+            // We cannot use a loop outside of the inner loop as it would prevent
+            // any key presses from being registered and thus making it a infinite loop
+            (0xF, _, 0, 0xA) => {
+                let x = digit2 as usize;
+                let mut pressed = false;
+                for i in 0..self.keys.len() {
+                    if self.keys[i] {
+                        self.v_reg[x] = i as u8;
+                        pressed = true;
+                        break;
+                    }
+                }
+
+                if !pressed {
+                    // Redo opcode
+                    self.pc -= 2;
+                }
+            },
+            // FX15
+            // DT = VX
+            (0xF, _, 1, 5) => {
+                let x = digit2 as usize;
+                self.dt = self.v_reg[x];
+            },
+            // FX18
+            // ST = VX
+            (0xF, _, 1, 8) => {
+                let x = digit2 as usize;
+                self.st = self.v_reg[x];
+            },
+            // FX1E
+            // I += VX : adds VX to I register, if overflow set to 0
+            (0xF, _, 1, 0xE) => {
+                let x = digit2 as usize;
+                let vx = self.v_reg[x] as u16;
+                self.i_reg = self.i_reg.wrapping_add(vx);
             },
             (_, _, _, _) => unimplemented!("Unimplemented opcode: {}", op),
         }
