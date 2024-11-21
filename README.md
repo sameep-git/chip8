@@ -25,12 +25,32 @@ Each opcode is 16bits. References to registers are usually refered to by `X` and
 | 8XY5 | VX -= VY | decrements VX with VY; sets VF to 0 if underflow and 1 if not
 | 8XY6 | VX >>= VY | Right shift; stores dropped bit in VF
 | 8XY7 | VX = VY - VX | sets VF to 0 if underflow and 1 if not
+**TODO:** Some functional opcodes are not described in the table yet
 
+***Keyboard Inputs:***
+
+Keyboard:
+|  |  |  | 	|
+|--|--|--|--|
+| 1| 2| 3| 4|
+| Q| W| E| R|
+| A| S| D| F|
+| Z| X| C| V|
+
+Chip-8 input:
+|  |  |  | 	|
+|--|--|--|--|
+| 1| 2| 3| C|
+| 4| 5| 6| D|
+| 7| 8| 9| E|
+| A| 0| B| F|
 
 TODO:
 
+ - [ ] Finish README.md
  - [ ] User Interface
 	 - [ ] User input
-	 - [ ] Loading files
-	 - [ ] Drawing to screen
+	 - [X] Loading files
+	 - [X] Drawing to screen
  - [ ] WebAssembly integration
+ 
