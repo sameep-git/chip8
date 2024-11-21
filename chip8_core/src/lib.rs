@@ -354,8 +354,46 @@ impl Emu {
             },
             // DXYN
             // DRAW - unimplemented
+            // Digit2 is x_coordinate
+            // Digit3 is y_coordinate
+            // Digit4 is number of rows
             (0xD, _, _, _) => {
+                // Get the coordinates and number of rows
+                let x_coord = self.v_reg[digit2 as usize] as u16;
+                let y_coord = self.v_reg[digit3 as usize] as u16;
+                let num_rows = digit4;
+                
+                // Mutable flipped variable
+                let mut flipped = false;
 
+                // Iterate through each line in num_rows
+                for y_line in 0..num_rows {
+                    // get the row of pixels
+                    let addr = self.i_reg + y_line as u16;
+                    let pixels = self.ram[addr as usize];
+
+                    // iterate through each pixel
+                    for x_line in 0..8 {
+                        // if it is set find the coordinates for x and y on screen
+                        if (pixels & (0b1000_0000 >> x_line)) != 0 {
+                            let x = (x_coord + x_line) as usize % SCREEN_WIDTH;
+                            let y = (y_coord + y_line) as usize % SCREEN_HEIGHT;
+                            
+                            // Find index of pixel in the screen as it is a 1-D array
+                            let idx = x + SCREEN_WIDTH * y;
+                            
+                            // check if we are flipping the pixel and set
+                            flipped |= self.screen[idx];
+                            self.screen[idx] ^= true;
+                        }
+                    }
+                }
+                // set value of VX acc to flipped
+                if flipped {
+                    self.v_reg[0xF] = 1;
+                } else {
+                    self.v_reg[0xF] = 0;
+                }
             },
             // EX9E
             // SKIP KEY PRESS : skip the next line if the key stored in VX is pressed
@@ -433,8 +471,57 @@ impl Emu {
                 let c = self.v_reg[x] as u16;
                 self.i_reg = c * 5;
             },
+            // FX33
+            // I = BCD of VX
+            (0xF, _, 3, 3) => {
+                let x = digit2 as usize;
+                let vx = self.v_reg[x] as f32;
+
+                let hundreds = (vx / 100.0).floor() as u8;
+                let tens = ((vx / 10.0) % 10.0).floor() as u8;
+                let ones = (vx % 10.0) as u8;
+
+                self.ram[self.i_reg as usize] = hundreds;
+                self.ram[(self.i_reg + 1) as usize] = tens;
+                self.ram[(self.i_reg + 2) as usize] = ones;
+            },
+            // FX55
+            // STORE V0 - VX
+            // Stores V0 thru VX in the RAM using the address in register I
+            (0xF, _, 5, 5) => {
+                let x = digit2 as usize;
+                let i = self.i_reg as usize;
+                for idx in 0..=x{
+                    self.ram[i + idx] = self.v_reg[idx];
+                }
+            },
+            // FX65
+            // LOAD V0 - VX
+            (0xF, _, 6, 5) => {
+                let x = digit2 as usize;
+                let i = self.i_reg as usize;
+                for idx in 0..x{
+                    self.v_reg[idx] = self.ram[i + idx];
+                }
+            },
             (_, _, _, _) => unimplemented!("Unimplemented opcode: {}", op),
         }
     }
 
+    /// Passes pointer to our screen buffer array to the frontend
+    pub fn get_display(&self) -> &[bool] {
+        &self.screen
+    }
+
+    /// Record a keypress
+    pub fn keypress(&mut self, idx: usize, pressed:bool) {
+        self.keys[idx] = pressed;
+    }
+
+    /// load a file into the RAM
+    pub fn load(&mut self, data: &[u8]) {
+        let start = START_ADDR as usize;
+        let end = (START_ADDR as usize) + data.len();
+        self.ram[start..end].copy_from_slice(data);
+    }
 }
