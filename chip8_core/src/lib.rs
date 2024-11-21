@@ -180,7 +180,7 @@ impl Emu {
             // 00E0
             // CLS : clear screen
             (0, 0, 0xE, 0) => {
-                self.screen = [false; SCREEN_HEIGHT * SCREEN_WIDTH];
+                self.screen = [false; SCREEN_WIDTH * SCREEN_HEIGHT];
             },
             // 00EE
             // RET : return from subroutine
@@ -300,8 +300,8 @@ impl Emu {
                 let x = digit2 as usize;
                 let y = digit3 as usize;
                 
-                let (new_vx, carry) = self.v_reg[x].overflowing_sub(self.v_reg[y]);
-                let new_vf = if carry {0} else {1};
+                let (new_vx, borrow) = self.v_reg[x].overflowing_sub(self.v_reg[y]);
+                let new_vf = if borrow {0} else {1};
                 
                 self.v_reg[x] = new_vx;
                 self.v_reg[0xF] = new_vf;
@@ -313,8 +313,8 @@ impl Emu {
             (8, _, _, 6) => {
                 let x = digit2 as usize;
                 let lsb = self.v_reg[x] & 1;
-                self.v_reg[0xF] = lsb;
                 self.v_reg[x] >>= 1;
+                self.v_reg[0xF] = lsb;
             },
             // 8XY7
             // VX = VY - VX
@@ -518,7 +518,7 @@ impl Emu {
             (0xF, _, 6, 5) => {
                 let x = digit2 as usize;
                 let i = self.i_reg as usize;
-                for idx in 0..x{
+                for idx in 0..=x{
                     self.v_reg[idx] = self.ram[i + idx];
                 }
             },
