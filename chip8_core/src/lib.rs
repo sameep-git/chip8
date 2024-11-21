@@ -1,4 +1,4 @@
-use rand::random;
+use rand::Rng;
 
 pub const SCREEN_HEIGHT: usize = 32;
 pub const SCREEN_WIDTH: usize = 64;
@@ -95,6 +95,7 @@ impl Emu {
         self.keys = [false; NUM_KEYS];
         self.dt = 0;
         self.st = 0;
+        self.ram[..FONTSET_SIZE].copy_from_slice(&FONTSET);
     }
 
     /// pushes a given value to the stack
@@ -120,16 +121,21 @@ impl Emu {
         self.execute(op);
     }
 
-    /// Fetches the opcode for the current instruction
-    /// Each opcode is exactly 2 bytes
-    fn fetch(&mut self) -> u16 {
-        // RAM stores values in u8, so we need to combine the higher and lower bytes
-        let higher_byte= self.ram[self.pc as usize] as u16;
-        let lower_byte= self.ram[(self.pc + 1) as usize] as u16;
-        // Big Endian representation
-        let op = (higher_byte << 8) | lower_byte;
-        self.pc += 2;
-        op
+    /// Passes pointer to our screen buffer array to the frontend
+    pub fn get_display(&self) -> &[bool] {
+        &self.screen
+    }
+
+    /// Record a keypress
+    pub fn keypress(&mut self, idx: usize, pressed:bool) {
+        self.keys[idx] = pressed;
+    }
+
+    /// load a file into the RAM
+    pub fn load(&mut self, data: &[u8]) {
+        let start = START_ADDR as usize;
+        let end = (START_ADDR as usize) + data.len();
+        self.ram[start..end].copy_from_slice(data);
     }
 
     /// Implements tick timers, each frame dt and st decrement
@@ -146,6 +152,18 @@ impl Emu {
         }
     }
 
+    /// Fetches the opcode for the current instruction
+    /// Each opcode is exactly 2 bytes
+    fn fetch(&mut self) -> u16 {
+        // RAM stores values in u8, so we need to combine the higher and lower bytes
+        let higher_byte= self.ram[self.pc as usize] as u16;
+        let lower_byte= self.ram[(self.pc + 1) as usize] as u16;
+        // Big Endian representation
+        let op = (higher_byte << 8) | lower_byte;
+        self.pc += 2;
+        op
+    }
+
     /// Executes operation on the Emulator
     /// * 'op': given opcode that needs to be executed
     fn execute(&mut self, op: u16) {
@@ -155,7 +173,7 @@ impl Emu {
         let digit3 = (op & 0x00F0) >> 4;
         let digit4 = op & 0x000F;
 
-        match (digit4, digit3, digit2, digit1) {
+        match (digit1, digit2, digit3, digit4) {
             // 0000
             // NOP : No operation
             (0, 0, 0, 0) => return,
@@ -192,7 +210,7 @@ impl Emu {
             (3, _, _, _) => {
                 let x = digit2 as usize;
                 let nn = (op & 0xFF) as u8;
-                if nn == self.v_reg[x] {
+                if self.v_reg[x] == nn {
                     self.pc += 2;
                 }
             },
@@ -202,13 +220,13 @@ impl Emu {
             (4, _, _, _) => {
                 let x = digit2 as usize;
                 let nn = (op & 0xFF) as u8;
-                if nn != self.v_reg[x] {
+                if self.v_reg[x] != nn {
                     self.pc += 2;
                 }
             },
             // 5XY0
             // SKIP VX == VY : skip line if VX == VY
-            (5, _, _, 0) => {
+            (5, _, _, _) => {
                 let x = digit2 as usize;
                 let y = digit3 as usize;
                 if self.v_reg[x] == self.v_reg[y] {
@@ -349,7 +367,7 @@ impl Emu {
             (0xC, _, _, _) => {
                 let x = digit2 as usize;
                 let nn = (op & 0xFF) as u8;
-                let rng: u8 = random();
+                let rng: u8 = rand::thread_rng().gen();
                 self.v_reg[x] = rng & nn;
             },
             // DXYN
@@ -506,22 +524,5 @@ impl Emu {
             },
             (_, _, _, _) => unimplemented!("Unimplemented opcode: {}", op),
         }
-    }
-
-    /// Passes pointer to our screen buffer array to the frontend
-    pub fn get_display(&self) -> &[bool] {
-        &self.screen
-    }
-
-    /// Record a keypress
-    pub fn keypress(&mut self, idx: usize, pressed:bool) {
-        self.keys[idx] = pressed;
-    }
-
-    /// load a file into the RAM
-    pub fn load(&mut self, data: &[u8]) {
-        let start = START_ADDR as usize;
-        let end = (START_ADDR as usize) + data.len();
-        self.ram[start..end].copy_from_slice(data);
     }
 }
